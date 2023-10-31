@@ -29,5 +29,4 @@ hubs, which can be subsequently categorized and filtered by their number of inte
 and regulatory element nodes as well as the expressed genes contained within their intervals. 
 This script also contains the option to compare hubs across two separate models on the basis of 
 their genomic interval and interaction counts in order to identify differential hubs in silico. 
-Finally, calculate_hyperconnected_hubs.R can be used to identify hyperinteracting (i.e. hyper-
-connected) hubs from a file of valid hubs within a cell model on the basis of interaction count. 
+Finally, calculate_hyperconnected_hubs.R can be used to identify hyperinteracting (i.e. hyperconnected) hubs from a file of valid hubs within a cell model on the basis of interaction count. 
