@@ -1,14 +1,14 @@
 #### ---------------------------------------------------------------------------------------------//
 #### This is the second of 4 scripts used to create a list of valid HiC EE/PP/EP interactions as input for hub calling. 
 #### Overview: This script creates a datatable of all possible combinations of accessible enhancer-
-# enhancer (EE), enhancer-(active) promoter (EP), and (active) promoter-promoter (PP) interactions within a given cell
-# type (i.e. Rec-1 Ib-sens/Ib-res cells) that will serve as the background for normalizing observed 
-# EE/EP/PP interactions in the subsequent script to create hub calling input. 
+# enhancer (EE), enhancer-(active) promoter (EP), and (active) promoter-promoter (PP) interactions across the given
+# conditions (i.e. Rec-1 Ib-sens/Ib-res cells) that will allow identification and normalization of 
+# EE/EP/PP spatial interactions in the subsequent script to create hub calling input. 
 # 
 #### Inputs: 1) output .bed8 file of "1_intersect_anchor_peak.sh" containing intervals of all accessible, 
-# enhancer and promoters from Ib-sens/Ib-res Rec-1, 2) .bed4 file containing expressed hg19 genes
-# within the given cell types (i.e. Rec-1 Ib-sensitive, Ib-resistant, Ib-treated), 3) integer representing
-# the maximum possible distance (in base pairs) between any 2 connected anchors
+# enhancers and promoters from Ib-sens/Ib-res Rec-1, 2) .bed4 file containing the union of expressed 
+# hg19 genes within the given conditions, 3) integer representing the maximum possible distance 
+# (in base pairs) between any 2 connected anchors
 #
 #### Dependencies: see R libraries below
 #
@@ -22,21 +22,20 @@
 library("dplyr")
 library("cluster")
 library('ggplot2')
-#library('DESeq2')
 library('data.table')
 # install.packages("stringr")
 library('stringr')
 
 #### Set working directory
-mydir <- "/mnt/data1/brent/analysis/idea47_HiC_pro_REC1_IBR_ARIMA/S01_220105_REC1_parental_DMSO_ArimaHiC/quantify_bedpe_on_randomEP"
+mydir <- "test_HiC"
 setwd(mydir)
 
 #### Input 1: Table containing all hg19 genes annotated with expression status in relevant conditions (i.e. Ib-sens/Ib-treated/ Ib-res) from RNA-seq
 # with columns: Geneid	symbol	DMSO_express(boolean)	IBR_express(boolean)	RES_express(boolean)
-REC1_RNA <- read.table("/mnt/data1/brent/analysis/idea02_REC1_IBR_RNAseq/expressed_gene_lists/REC1_ENSG_all_exp.txt", header=TRUE, sep = "\t")
+REC1_RNA <- read.table("Interaction_Filtering_HiC/example_input_data/REC1_ENSG_all_exp.txt", header=TRUE, sep = "\t")
 
 #### Input 2: List of enhancer & promoter anchors intersected with ATAC peaks from "*intersect_anchor_peak.sh" script
-enh_tss_all <- fread("/mnt/data1/brent/analysis/idea47_HiC_pro_REC1_IBR_ARIMA/S01_220105_REC1_parental_DMSO_ArimaHiC/quantify_bedpe_on_randomEP/230306_REC1_TSS_ENH_ATAC_intersect.bed")
+enh_tss_all <- fread("230306_REC1_TSS_ENH_ATAC_intersect.bed")
 
 #### Input 3: Integer representing the longest possible cis interaction distance, likely not longer than 2MB based on the longest observed
 # input interactions
@@ -87,11 +86,11 @@ for (chrom in unique(all_EP_by_atac_df$V5)){
   }
 }
 
-#### Annotate output dataframe with unique loop_ids based on atac_ids of the 2 connecting anchors
+#### Annotate output dataframe with unique interaction_ids based on atac_ids of the 2 connecting anchors
 all_reg_int_cis_only$loop_id <- paste(str_split_i(all_reg_int_cis_only$reg_atac_id1, "_", 1), str_split_i(all_reg_int_cis_only$reg_atac_id1, "_", 2), str_split_i(all_reg_int_cis_only$reg_atac_id2, "_", 3), sep = "_")
 
 #### Outputs: 1) Dataframe of all possible accessible EE/EP/PP interactions and 2) dataframe of enhancer/promoter anchor annotations
-# both for intersection with accessible HiC loops .bedpe file in the subsequent "*quantify_bedpe_HiC.R" script
+# both for intersection with accessible HiC interactions .bedpe file in the subsequent "*quantify_bedpe_HiC.R" script
 save(all_reg_int_cis_only, enh_tss, file = "230306_random_REC1_EP_table.rda")
 
 #### [Optional] Annotate output df

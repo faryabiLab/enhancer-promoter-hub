@@ -5,7 +5,7 @@
 #
 #### Inputs: Filtered .csv datatables of PP/EE/EP interactions in the control and case conditions (chrom_start1_end1,chrom_start2_end2,contactFrequency), 
 # .csv files of annotated enhancer/promoters in each condition (chrom_start_end,"enhancer/promoter"), BED4 file of all genes for given genome build (e.g. hg19) 
-# in format (chrom \t start \t end \t gene_symbol \n), BED4 file of expressed genes in either case and/or control conditions, 
+# in format (chrom \t start \t end \t gene_symbol \n), BED4 file of expressed genes in either case and/or control conditions (not provided here), 
 # and paths/names of relevant input/output dirs/files
 #
 #### Dependencies: cluster-tree (https://github.com/GregorySchwartz/hierarchical-spectral-clustering), bedtools suite,
@@ -23,17 +23,17 @@
 #### Inputs: Paths to case and control .csv tables of filtered PP/EE/EP interactions and .csv tables of labeled anchors (enh/pro),
 # path to input directory, path of final desired hub unionlist output file name, and path to .bed file(s) containing
 # the chromosomal intervals of (expressed) genes within either case or control conditions (optional)
-INPUTDIR=/mnt/data0/brent/analysis/idea32_230824_final_hub_scripts_submission/230825_Finalized_Hub_Scripts/Hub_Pipeline
-DATADIR=/mnt/data0/brent/analysis/idea32_230824_final_hub_scripts_submission/230825_Finalized_Hub_Scripts/Hub_Pipeline/example_input_data
+INPUTDIR=/mnt/data0/brent/analysis/idea32_230824_final_hub_scripts_submission/240529_Final_Scripts_v3/Hub_Pipeline
+DATADIR=/mnt/data0/brent/analysis/idea32_230824_final_hub_scripts_submission/240529_Final_Scripts_v3/test_HiC/example_hub_calling
 CONTROL_INPUT=${DATADIR}/Control_ct_filt.csv
 CASE_INPUT=${DATADIR}/Case_ct_filt.csv
 CONTROL_LABEL=${DATADIR}/Control_label.csv
 CASE_LABEL=${DATADIR}/Case_label.csv
 OUT_NAME=${DATADIR}/REC1_hub_IBR_RES_unionlist.txt
-ALL_GENES=${DATADIR}/hg19_ucsc_gene_name_interval_unique.bed
-EXPRESSED_GENES_CONTROL=${DATADIR}/REC1_DMSO_24h_exp_genes.bed
-EXPRESSED_GENES_CASE=${DATADIR}/REC1_RES_24h_exp_genes.bed
-EXPRESSED_GENES_UNION=${DATADIR}/REC1_DMSO_RES_24h_exp_genes_uniq2.bed
+ALL_GENES=${INPUTDIR}/hg19_ucsc_gene_name_interval_unique.bed
+#EXPRESSED_GENES_CONTROL=${DATADIR}/REC1_control_exp_genes.bed 
+#EXPRESSED_GENES_CASE=${DATADIR}/REC1_case_exp_genes.bed
+#EXPRESSED_GENES_UNION=${DATADIR}/REC1_control_case_union_exp_genes.bed
 
 #### Make folder to store intermediate output as working directory
 WORKDIR=${DATADIR}/intermediate_files
@@ -51,7 +51,7 @@ cat $CONTROL_INPUT | ~/.local/bin/cluster-tree -c Dense -n 2 -s -o Control_hub_o
 cat $CASE_INPUT | ~/.local/bin/cluster-tree -c Dense -n 2 -s -o Case_hub_output_trees/tree.json > Case_hub_ct_output.csv
 echo "cluster-tree successfully called on Control and Case input files to generate lists of hubs"
 
-#### [Optional/Adjustable] Modify output to eliminate subtrees to visualize consolidated hubs (i.e. merge all subtrees into parent tree)
+#### [Optional/Adjustable] Modify output to examine hubs at the resolution of self-contained EP networks (i.e. merge all subtrees into parent tree)
 # This step can be removed/altered if a more stringent definition of hubs is desired
 awk -F/ 'BEGIN{print "item,cluster"} NR>1 {print $1"/1"}' ${WORKDIR}/Control_hub_ct_output.csv > ${WORKDIR}/Control_hsc.csv
 awk -F/ 'BEGIN{print "item,cluster"} NR>1 {print $1"/1"}' ${WORKDIR}/Case_hub_ct_output.csv > ${WORKDIR}/Case_hsc.csv
@@ -75,15 +75,15 @@ echo "Control and Case hubs successfully categorized by the contiguous genomic i
 #### [Optional] Create .bed file of hub genomic intervals to allow for visualization in (IGV) gene browser to help evaluate
 # if contact frequency cutoff for filtering input EE/PP/EP interactions was valid
 awk 'NR>1 {print $1"\t"$2"\t"$3}' ${WORKDIR}/Control_hub_by_interval.txt > ${DATADIR}/Control_hub_by_interval_IGV.bed
-awk 'NR>1 {print $1"\t"$2"\t"$3}' ${WORKDIR}/Case_hub_by_interval.txt > ${DATDIR}/Case_hub_by_interval_IGV.bed
+awk 'NR>1 {print $1"\t"$2"\t"$3}' ${WORKDIR}/Case_hub_by_interval.txt > ${DATADIR}/Case_hub_by_interval_IGV.bed
 
 #### Final output 1: 2 separate lists of control and case hubs (respectively) that are categorized by genomic interval, interaction count, and enhancer/promoter count
 #### ** NOTE THAT THESE FILES MUST EACH BE FILTERED PRIOR TO DOWNSTREAM ANALYSIS IN ORDER TO ISOLATE TRUE HUBS WITH INTERACTION COUNT > 5 **
 #### Remove header and sort hub interval lists by interaction count to create control and case hub lists
 # that can be used for all downstream analyses examining these conditions in isolation from one another.
 # Sorting hubs in this manner also faciliates pairing of the Control and Case hubs in subsequent step to create a union hub list
-awk 'NR>1 {print $0}' ${WORKDIR}/Control_hub_by_interval.txt | sort -k5nr > ${INPUTDIR}/example_input_data/Control_hub_by_interval_sort.txt
-awk 'NR>1 {print $0}' ${WORKDIR}/Case_hub_by_interval.txt | sort -k5nr > ${INPUTDIR}/example_input_data/Case_hub_by_interval_sort.txt
+awk 'NR>1 {print $0}' ${WORKDIR}/Control_hub_by_interval.txt | sort -k5nr > ${WORKDIR}/Control_hub_by_interval_sort.txt
+awk 'NR>1 {print $0}' ${WORKDIR}/Case_hub_by_interval.txt | sort -k5nr > ${WORKDIR}/Case_hub_by_interval_sort.txt
 
 #### Filter hub lists such that only true hubs with interaction count > 5 are kept; do NOT use this as input to differential hub calling
 awk '{if($5 > 5){print $0}}' ${WORKDIR}/Control_hub_by_interval_sort.txt > ${DATADIR}/Control_hub_by_interval_sort_filt.txt
@@ -92,8 +92,8 @@ awk '{if($5 > 5){print $0}}' ${WORKDIR}/Case_hub_by_interval_sort.txt > ${DATADI
 #### (Optional addition for final output 1): Annotate control and case hub lists with expressed genes in each condition
 ANNOTATE_FUNC=${INPUTDIR}/hub_interval_to_gene_node.py
 # Annotate union hubs with lists of genes that are expressed in either case or control conditions (from RNA-seq data) that are contained within hub genomic intervals
-python $ANNOTATE_FUNC ${DATADIR}/Control_hub_by_interval_sort.txt $EXPRESSED_GENES_CONTROL ${DATADIR}/Control_hub_by_interval_sort_exp_gene.txt single
-python $ANNOTATE_FUNC ${DATADIR}/Case_hub_by_interval_sort.txt $EXPRESSED_GENES_CASE ${DATADIR}/Case_hub_by_interval_sort_exp_gene.txt single
+#python $ANNOTATE_FUNC ${DATADIR}/Control_hub_by_interval_sort.txt $EXPRESSED_GENES_CONTROL ${DATADIR}/Control_hub_by_interval_sort_exp_gene.txt single
+#python $ANNOTATE_FUNC ${DATADIR}/Case_hub_by_interval_sort.txt $EXPRESSED_GENES_CASE ${DATADIR}/Case_hub_by_interval_sort_exp_gene.txt single
 
 #### Generate union list of hubs between control and case hub lists, eliminate hubs with less than 6 edges in both 
 # control AND case conditions from union list, and sort output by chromosomal interval
@@ -106,5 +106,5 @@ sort -k5nr -k8nr $OUT_NAME$NO > ${OUT_NAME}.sort.${NO}
 # and (expressed) genes as well as other attributes in each condition
 ANNOTATE_FUNC=${INPUTDIR}/hub_interval_to_gene_node.py
 # Annotate union hubs with lists of genes that are expressed in either case or control conditions (from RNA-seq data) that are contained within hub genomic intervals
-python $ANNOTATE_FUNC ${OUT_NAME}.sort.${NO} $EXPRESSED_GENES_UNION ${OUT_NAME}.expgene.txt union
+#python $ANNOTATE_FUNC ${OUT_NAME}.sort.${NO} $EXPRESSED_GENES_UNION ${OUT_NAME}.expgene.txt union
 

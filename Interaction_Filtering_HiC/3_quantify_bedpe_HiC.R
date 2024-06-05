@@ -1,17 +1,18 @@
 #### ---------------------------------------------------------------------------------------------//
 #### This is the third of 4 scripts used to create a list of valid HiC EE/PP/EP interactions as input for hub calling. 
-#### Overview: This script counts the number of observed (Rec-1 Ib-sensitive) HiC loops connecting accessible enhancer
-#  and (active) promoter anchors and normalizes raw counts by the total number of observed input HiC loops 
-# to create hub calling input. 
+#### Overview: This script counts the number of observed (Rec-1 Ib-sensitive) HiC interactions connecting accessible enhancer
+#  and (active) promoter anchors and normalizes raw counts by the total number of observed input HiC interations 
+# to create hub calling input. This script should be run twice, once with condition 1 (i.e. drug-sens) Hi-C data as input and 
+# again with condition 2 (i.e. drug-res) Hi-C data as input. 
 # 
-#### Inputs: 1) .bedpe file of all (Rec-1 Ib-sensitive) loops including natural duplicates, 2) .bed file corresponding to 
+#### Inputs: 1) .bedpe file of all (Rec-1 Ib-sensitive) reads, 2) .bed file corresponding to 
 # (REC-1) size-adjusted ATAC-seq peaks created as intermediate output by "1_intersect_anchor_peak.sh", 3) .rda file containing
 # a) datatable with all possible (Rec-1) cis EE/EP/PP linkages (output from "2_make_random_EP_table.R") and b) datatable with 
 # enhancer/promoter annotations for all anchors (see script 2 of 4 for more details on these 2 input files)
 # 
 #### Dependencies: see R libraries below
 #
-#### Output: Dataframe containing all accessible EE/EP/PP interactions in given condition (i.e. Rec-1 Ib-sensitive) 
+#### Output: Dataframe containing all accessible EE/EP/PP interactions in the given condition (i.e. Rec-1 Ib-sensitive) 
 # as well as normalized scores for each interaction for subsequent filtering and hub-calling
 #### ---------------------------------------------------------------------------------------------//
 
@@ -23,27 +24,24 @@ library('dplyr')
 library('stringr')
 
 #### Set working directory
-mainDir <- "/Users/BrentPerlman/Desktop/230627_annotated_scripts/Interaction_Filtering_RandomEP_HiC_REC1"
-mainDir <- "/mnt/data1/brent/analysis/idea47_HiC_pro_REC1_IBR_ARIMA/S01_220105_REC1_parental_DMSO_ArimaHiC"
+mainDir <- "test_HiC"
 setwd(mainDir)
 
 #### Input 1: Path to .bedpe file containing all (Ib-sensitive Rec-1) paired-end reads after HiC Pro alignment & basic filtering
-loop <- "/mnt/data1/brent/analysis/idea47_HiC_pro_REC1_IBR_ARIMA/S01_220105_REC1_parental_DMSO_ArimaHiC/S01_220105_REC1_parental_DMSO_ArimaHiC_mango.rmdup.bedpe"
+loop <- "example_input_data/S01_220105_REC1_parental_DMSO_ArimaHiC_mango_ABRIDGED.rmdup.bedpe"
 #loop <- "S03_220105_REC1_IBR_resistant_ArimaHiC_mango.rmdup.bedpe" #for ibrutinib-resistant loops
 
 #### Input 2: Path to .bed file corresponding to (REC-1) size-adjusted ATAC-seq peaks created as intermediate output by "intersect_anchor_peak.sh"
-atacPeak <- "/mnt/data1/brent/analysis/idea47_HiC_pro_REC1_IBR_ARIMA/S01_220105_REC1_parental_DMSO_ArimaHiC/quantify_bedpe_on_randomEP/230306_REC1_ATAC_summit_ext_2500.bed"
+atacPeak <- "test_HiC/REC1_ATAC_summit_ext_2500.txt"
 
 #### Input 3: Load datatable of all possible cis linkages between accessible enhancers and promoters in Ib-sensitive Rec-1 and 
 # datatable with enhancer/promoter annotations for all anchors from .rda output of "2_make_random_EP_table.R"
-load("quantify_bedpe_on_randomEP/230306_random_REC1_EP_table.rda")
+load("230306_random_REC1_EP_table.rda")
 
-#### Execute helper bash shell script to create list of HiC loops (from .bedpe input file) with two accessible anchors
+#### Execute helper bash shell script to create list of HiC interactions (from .bedpe input file) with two accessible anchors
 # and annotate each of these anchors with unique ATAC-seq identifiers in two separate files (i.e. 'p' and 'q' anchors)
 # can take ~30 mins depending on processing power
-setwd("/mnt/nas3/users/brent/analysis/Finalized_Hub_Scripts")
 cmd <- paste("Interaction_Filtering_HiC/make_accessible_anchor_lists.sh", loop, atacPeak)
-cmd <- paste("./make_accessible_anchor_lists.sh", loop, atacPeak)
 system(cmd)
 
 #### Load helper script output files of anchors annotated by ATAC peaks, can take a few minutes [do not open files-- R will crash]
@@ -83,7 +81,7 @@ all_reg_int_cis_only_filt2 <- subset(all_reg_int_cis_only_filt, select=c("reg_at
 HiC_over_random_EP <- plyr::ddply(all_reg_int_cis_only_filt2, .(reg_atac_id1, reg_atac_id2), nrow)
 colnames(HiC_over_random_EP) <- c("p_int_id", "q_int_id", "HiC_count")
 
-#### Calculate normalized interaction score for each EPPPEE interaction by normalizing by number of detected loops (i.e. rows) from original HiC .bedpe file 
+#### Calculate normalized interaction score for each EPPPEE interaction by normalizing by number of detected interactions (i.e. rows) from original HiC .bedpe file 
 # First, find number of loops detected from HiC
 cmd1 <- paste("wc -l", loop)
 loop_out <- system(cmd1, intern = TRUE)
@@ -93,14 +91,14 @@ HiC_over_random_EP_2 <- HiC_over_random_EP %>%
   mutate(HiC_over_random_EP_norm_2 = HiC_count/total_loop * 1E8)
 #save(REC1_DMSO_Arima_HiC_over_random_EP, file="230306_REC1_DMSO_Arima_over_random_EP.rda") #optional 
 
-#### Annotate scored loop anchors by enhancers and promoters and create dataframe for clique-calling input
+#### Annotate scored interaction anchors by enhancers and promoters and create dataframe for clique-calling input
 enh_tss_slim <- subset(enh_tss, select=c("V8", "annotation"))
 HiC_over_random_EP_annot <- unique(merge(HiC_over_random_EP_2, enh_tss_slim, by.x="p_int_id", by.y="V8"))
 colnames(HiC_over_random_EP_annot) = c("p_int_id", "q_int_id", "HiC_count", "HiC_over_random_EP_norm_2", "p_annotation")
 HiC_over_random_EP_annot <- unique(merge(HiC_over_random_EP_annot, enh_tss_slim, by.x="q_int_id", by.y="V8"))
 colnames(HiC_over_random_EP_annot) = c("q_int_id", "p_int_id", "HiC_count", "HiC_over_random_EP_norm_2", "p_annotation", "q_annotation")
 
-#### Final output: dataframe containing all valid EE/PP/EP loops, their anchor annotations, and their interaction scores
+#### Final output: dataframe containing all valid EE/PP/EP interactions, their anchor annotations, and their interaction scores
 Control_HiC_clique_input <- HiC_over_random_EP_annot[,c(2,1,3,4,5,6)]
 save(Control_HiC_clique_input, file="230306_REC1_DMSO_Arima_clique_input_random_EP.rda")
 

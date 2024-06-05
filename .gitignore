@@ -4,6 +4,7 @@ __pycache__
 
 # R
 .Rhistory
+.Rapp.history
 
 # emacs
 *~

@@ -1,15 +1,15 @@
 #### ---------------------------------------------------------------------------------------------//
 #### This is the fourth of 4 scripts used to create a list of valid HiC EE/PP/EP interactions as input for hub calling. 
 #### Overview: This script filters the EE/PP/EP interactions for 2 given conditions (i.e. Rec-1 Ib-sensitive/Ib-resistant)
-# using a given normalized interaction score cutoff to create a final list of valid regulatory element contacts for hub calling.
+# using a normalized interaction score cutoff to create a final list of valid regulatory element contacts for hub calling.
 #
 #### Inputs: 1) Dataframe containing EE/PP/EP interactions for condition 1 (Ib-sens) with normalized interaction scores (script 3 output), 
 # 2) Dataframe containing EE/PP/EP interactions for condition 2 (Ib-res) with normalized interaction scores (script 3 output), and 
-# 3) Double representing the normalized interaction score to consider an EE/EP/PP pair as a valid, true contact
+# 3) Double representing the normalized interaction score to consider an EE/EP/PP contact as a valid interaction
 #
-#### Outputs: One .csv files of valid, filtered EE/PP/EP physical contacts for each condition (2 files total), which 
-# can be directly used for subsequent command-line calling of hubs via hierarchical spectral clustering
-# with format "enh/pro1", "enh/pro2", "normalized_loop_score_condX", "annot1", "annot2"
+#### Outputs: One .csv file of valid, filtered EE/PP/EP spatial interactions for each condition (2 files total), which 
+# can be directly used for subsequent command-line calling of hubs via clustering
+# with format "enh/pro1", "enh/pro2", "normalized_interaction_score", "annot1", "annot2"
 #### ---------------------------------------------------------------------------------------------//
 
 #### Load library and numeric preferences
@@ -18,13 +18,16 @@ options(scipen=999) # Convert sci notation to decimal if necessary
 
 #### Clear local environment and set workdir
 rm(list = ls())
-setwd("/mnt/data0/brent/3D_Cliques/230306_REC1_Arima_IBR_Random_EP/cf3")
+setwd("test_HiC")
+cmd <- paste("mkdir example_hub_calling")
+system(cmd)
+setwd("example_hub_calling")
 
 #### Inputs: Load file containing EE/PP/EP contacts with normalized interaction scores for each condition
-load("/mnt/data0/brent/3D_Cliques/230306_REC1_Arima_IBR_Random_EP/clique_input/230306_REC1_DMSO_Arima_clique_input_random_EP.rda")
-load("/mnt/data0/brent/3D_Cliques/230306_REC1_Arima_IBR_Random_EP/clique_input/230306_REC1_RES_Arima_clique_input_random_EP.rda")
+load("test_HiC/230306_REC1_DMSO_Arima_clique_input_random_EP.rda")
+load("test_HiC/230306_REC1_RES_Arima_clique_input_random_EP.rda")
 
-#### Input: Define contact frequency cutoff for interaction filtering (3 for HiC contacts and 2 for SMC1 HiChIP contacts)
+#### Input: Define contact frequency cutoff for interaction filtering 
 contact_cutoff = as.double('3')
 
 #### Input: Define intermediate output file names/paths, out1 = control and out2 = case/experimental
@@ -49,6 +52,6 @@ write.table(Case_Clique_PPEEEP, file = out2, sep = ",", row.names = FALSE, col.n
 
 #### Call helper bash shell script to reorganize .csv files to create final dataframes of EE/PP/EP interactions for input into hub-calling pipeline 
 # in format (chr_A_start1_stop1,chrA_start2_stop2,contactFreq) as well as enhancer/promoter annotation files for anchors 
-cmd <- paste("./generate_ct_input.sh", out1, out2)
+cmd <- paste("Interaction_Filtering_HiC/generate_ct_input.sh", out1, out2)
 system(cmd)
 
